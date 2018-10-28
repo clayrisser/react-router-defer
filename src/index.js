@@ -2,6 +2,16 @@ import PropTypes from 'prop-types';
 import React, { Component } from 'react';
 import { Route as ReactRouterRoute } from 'react-router';
 
+const historyPushHandlers = [];
+const routeLoadedHandlers = [];
+
+function onHistoryPush(handleHistoryPush) {
+  historyPushHandlers.push(handleHistoryPush);
+}
+function onRouteLoaded(handleRouteLoaded) {
+  routeLoadedHandlers.push(handleRouteLoaded);
+}
+
 class Route extends Component {
   static propTypes = {
     componentDefer: PropTypes.func,
@@ -22,17 +32,21 @@ class Route extends Component {
   };
 
   state = {
-    rendered: null,
-    component: () => null
+    rendered: 'loading',
+    component: () => 'loading'
   };
 
   isRendering = false;
 
   componentWillMount() {
-    const { history } = this.context.router;
+    const { router } = this.context;
+    const { history } = router;
     if (!history._push) {
       history._push = history.push;
       history.push = async (...args) => {
+        for (const handleHistoryPush of historyPushHandlers) {
+          await handleHistoryPush(router);
+        }
         history._push(...args);
       };
     }
@@ -56,6 +70,14 @@ class Route extends Component {
     if (component.__esModule) component = component.default;
     this.setState({ component });
     this.isRendering = false;
+    this.routeLoaded();
+  }
+
+  async routeLoaded() {
+    const { router } = this.context;
+    for (const handleRouteLoaded of routeLoadedHandlers) {
+      await handleRouteLoaded(router);
+    }
   }
 
   async renderDefer() {
@@ -64,6 +86,7 @@ class Route extends Component {
     if (rendered.__esModule) rendered = rendered.default;
     this.setState({ rendered });
     this.isRendering = false;
+    this.routeLoaded();
   }
 
   render() {
@@ -80,10 +103,12 @@ class Route extends Component {
         ...props,
         render: this.getRenderDefer()
       };
+    } else {
+      this.routeLoaded();
     }
     return <ReactRouterRoute {...props} />;
   }
 }
 
 export * from 'react-router';
-export { Route };
+export { Route, onHistoryPush, onRouteLoaded };
