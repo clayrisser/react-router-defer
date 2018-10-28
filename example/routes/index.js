@@ -1,9 +1,5 @@
 import React, { Component } from 'react';
-import * as reactRouterDefer from '../../src';
-
-const { Switch, Route, onHistoryPush, onRouteLoaded } = reactRouterDefer;
-
-console.log('reactRouterDefer', reactRouterDefer);
+import { Switch, Route, onHistoryPush, onRouteLoaded } from '../../src';
 
 onHistoryPush(async router => {
   console.log('waiting 3 seconds');
