@@ -1,0 +1,73 @@
+{
+  "name": "react-router-defer",
+  "version": "0.0.1",
+  "description": "Adds deferred asynchronous rendering to react router",
+  "keywords": [
+    "react-router-defer",
+    "defer",
+    "asynchronous",
+    "async",
+    "react",
+    "react-router",
+    "router"
+  ],
+  "homepage": "https://github.com/codejamninja/react-router-defer",
+  "bugs": {
+    "url": "https://github.com/codejamninja/react-router-defer/issues",
+    "email": "jam@codejam.ninja"
+  },
+  "license": "MIT",
+  "author": {
+    "name": "Jam Risser",
+    "email": "jam@codejam.ninja",
+    "url": "https://codejam.ninja"
+  },
+  "files": [
+    "lib"
+  ],
+  "main": "lib/index.js",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/codejamninja/react-router-defer"
+  },
+  "scripts": {
+    "build": "babel src -d lib",
+    "clean": "rimraf lib",
+    "format": "prettier --write ./src/**/*.js",
+    "lint": "npm run format && eslint ./",
+    "lint:fix": "npm run format && eslint --fix ./",
+    "prepublish": "npm run clean && npm run build",
+    "start": "parcel example/index.html"
+  },
+  "dependencies": {
+    "@babel/polyfill": "^7.0.0",
+    "history": "^4.7.2",
+    "prop-types": "^15.6.2",
+    "react": "^16.6.0",
+    "react-router": "^4.3.1"
+  },
+  "devDependencies": {
+    "@babel/cli": "^7.0.0",
+    "@babel/core": "^7.0.0",
+    "@babel/plugin-proposal-class-properties": "^7.1.0",
+    "@babel/preset-env": "^7.0.0",
+    "@babel/preset-react": "^7.0.0",
+    "babel-core": "7.0.0-bridge.0",
+    "babel-eslint": "^9.0.0",
+    "babel-preset-everything": "^0.1.2",
+    "eslint": "^5.5.0",
+    "eslint-config-jam": "^0.1.2",
+    "eslint-plugin-jsx-a11y": "^6.1.1",
+    "eslint-plugin-react": "^7.11.1",
+    "parcel-bundler": "^1.10.3",
+    "react-dom": "^16.6.0",
+    "react-router-dom": "^4.3.1",
+    "rimraf": "^2.6.2"
+  },
+  "engines": {
+    "node": ">=6.0.0"
+  },
+  "eslintIgnore": [
+    "lib"
+  ]
+}
