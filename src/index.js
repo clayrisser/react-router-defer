@@ -6,10 +6,18 @@ const historyPushHandlers = [];
 const routeLoadedHandlers = [];
 
 function onHistoryPush(handleHistoryPush) {
+  const index = historyPushHandlers.length;
   historyPushHandlers.push(handleHistoryPush);
+  return {
+    remove: () => delete historyPushHandlers[index]
+  };
 }
 function onRouteLoaded(handleRouteLoaded) {
+  const index = routeLoadedHandlers.length;
   routeLoadedHandlers.push(handleRouteLoaded);
+  return {
+    remove: () => delete routeLoadedHandlers[index]
+  };
 }
 
 class Route extends Component {
@@ -31,9 +39,13 @@ class Route extends Component {
     }).isRequired
   };
 
+  componentDefer = null;
+
+  renderDefer = null;
+
   state = {
-    rendered: 'loading',
-    component: () => 'loading'
+    component: () => 'loading',
+    rendered: 'loading'
   };
 
   isRendering = false;
@@ -66,7 +78,7 @@ class Route extends Component {
 
   async componentDefer() {
     this.isRendering = true;
-    let component = await this.props.componentDefer(this.props);
+    let component = await this.componentDefer(this.props);
     if (component.__esModule) component = component.default;
     this.setState({ component });
     this.isRendering = false;
@@ -82,7 +94,7 @@ class Route extends Component {
 
   async renderDefer() {
     this.isRendering = true;
-    let rendered = await this.props.renderDefer(this.props);
+    let rendered = await this.renderDefer(this.props);
     if (rendered.__esModule) rendered = rendered.default;
     this.setState({ rendered });
     this.isRendering = false;
@@ -90,15 +102,29 @@ class Route extends Component {
   }
 
   render() {
+    const { component, render, componentDefer, renderDefer } = this.props;
     let props = { ...this.props };
     delete props.componentDefer;
     delete props.renderDefer;
-    if (this.props.componentDefer) {
+    if (component) {
+      if (Promise.resolve(component) === component) {
+        this.componentDefer = component;
+      }
+    } else if (render) {
+      if (Promise.resolve(render) === render) {
+        this.renderDefer = render;
+      }
+    } else if (componentDefer) {
+      this.componentDefer = componentDefer;
+    } else if (renderDefer) {
+      this.renderDefer = renderDefer;
+    }
+    if (this.componentDefer) {
       props = {
         ...props,
         component: this.getComponentDefer()
       };
-    } else if (this.props.renderDefer) {
+    } else if (this.renderDefer) {
       props = {
         ...props,
         render: this.getRenderDefer()
