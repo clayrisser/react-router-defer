@@ -1,6 +1,6 @@
 {
   "name": "react-router-defer",
-  "version": "0.2.0",
+  "version": "0.3.0",
   "description": "Adds deferred asynchronous rendering to react router",
   "keywords": [
     "react-router-defer",
@@ -31,7 +31,7 @@
     "url": "https://github.com/codejamninja/react-router-defer"
   },
   "scripts": {
-    "build": "babel src -d lib",
+    "build": "npm run lint && babel src -d lib",
     "clean": "rimraf lib",
     "format": "prettier --write ./src/**/*.js",
     "lint": "npm run format && eslint ./",
@@ -68,6 +68,8 @@
     "node": ">=6.0.0"
   },
   "eslintIgnore": [
+    ".cache",
+    "dist",
     "lib"
   ]
 }
