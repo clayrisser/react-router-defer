@@ -1,6 +1,7 @@
 import PropTypes from 'prop-types';
 import React, { Component } from 'react';
 import { Route as ReactRouterRoute } from 'react-router';
+import { LoadingContext } from './Switch';
 
 const routeLoadedHandlers = [];
 
@@ -15,12 +16,22 @@ function onRouteLoaded(handleRouteLoaded) {
 export default class Route extends Component {
   static propTypes = {
     componentDefer: PropTypes.func,
+    loading: PropTypes.node,
     renderDefer: PropTypes.func
   };
 
   static defaultProps = {
     componentDefer: null,
+    loading: null,
     renderDefer: null
+  };
+
+  static contextTypes = {
+    router: PropTypes.shape({
+      history: PropTypes.shape({
+        push: PropTypes.func.isRequired
+      }).isRequired
+    }).isRequired
   };
 
   componentDefer = null;
@@ -28,33 +39,30 @@ export default class Route extends Component {
   renderDefer = null;
 
   state = {
-    component: () => 'loading',
-    rendered: 'loading'
+    component: () => null,
+    loading: true,
+    rendered: null
   };
 
   isRendering = false;
 
-  componentDidMount() {
-    this.routeLoaded();
-  }
-
   getRenderDefer() {
-    if (!this.isRendering) this.renderDefer();
+    if (!this.isRendering) this.triggerRenderDefer();
     const { rendered } = this.state;
     return () => rendered;
   }
 
   getComponentDefer() {
-    if (!this.isRendering) this.componentDefer();
+    if (!this.isRendering) this.triggerComponentDefer();
     const { component } = this.state;
     return component;
   }
 
-  async componentDefer() {
+  async triggerComponentDefer() {
     this.isRendering = true;
     let component = await this.componentDefer(this.props);
     if (component.__esModule) component = component.default;
-    this.setState({ component });
+    this.setState({ component, loading: false });
     this.isRendering = false;
     this.routeLoaded();
   }
@@ -66,7 +74,7 @@ export default class Route extends Component {
     }
   }
 
-  async renderDefer() {
+  async triggerRenderDefer() {
     this.isRendering = true;
     let rendered = await this.renderDefer(this.props);
     if (rendered.__esModule) rendered = rendered.default;
@@ -75,17 +83,26 @@ export default class Route extends Component {
     this.routeLoaded();
   }
 
+  renderLoading(props) {
+    delete props.component;
+    delete props.render;
+    return (
+      <ReactRouterRoute {...props}>
+        <LoadingContext.Consumer>
+          {loading => this.props.loading || loading}
+        </LoadingContext.Consumer>
+      </ReactRouterRoute>
+    );
+  }
+
   render() {
     const { component, render, componentDefer, renderDefer } = this.props;
-    let props = { ...this.props };
-    delete props.componentDefer;
-    delete props.renderDefer;
     if (component) {
-      if (Promise.resolve(component) === component) {
+      if (isPromise(component)) {
         this.componentDefer = component;
       }
     } else if (render) {
-      if (Promise.resolve(render) === render) {
+      if (isPromise(render)) {
         this.renderDefer = render;
       }
     } else if (componentDefer) {
@@ -93,6 +110,9 @@ export default class Route extends Component {
     } else if (renderDefer) {
       this.renderDefer = renderDefer;
     }
+    let props = { ...this.props };
+    delete props.componentDefer;
+    delete props.renderDefer;
     if (this.componentDefer) {
       props = {
         ...props,
@@ -103,9 +123,22 @@ export default class Route extends Component {
         ...props,
         render: this.getRenderDefer()
       };
+    } else {
+      this.routeLoaded();
     }
+    if (this.state.loading) return this.renderLoading(props);
     return <ReactRouterRoute {...props} />;
   }
+}
+
+function isPromise(promise) {
+  const { name } = promise?.constructor || {};
+  if (name === 'Promise' || name === 'LazyPromise') return true;
+  if (typeof promise === 'function') {
+    const { name } = promise()?.constructor || {};
+    if (name === 'Promise' || name === 'LazyPromise') return true;
+  }
+  return false;
 }
 
 export { onRouteLoaded };

@@ -1,3 +1,5 @@
+import Route, { onRouteLoaded } from './Route';
+import Switch, { onHistoryPush } from './Switch';
+
 export * from 'react-router';
-export * from './Route';
-export * from './Switch';
+export { Route, Switch, onHistoryPush, onRouteLoaded };

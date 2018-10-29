@@ -1,6 +1,8 @@
 import PropTypes from 'prop-types';
-import React, { Component } from 'react';
+import React, { Component, createContext } from 'react';
 import { Switch as ReactRouterSwitch } from 'react-router';
+
+const LoadingContext = createContext();
 
 const historyPushHandlers = [];
 
@@ -13,6 +15,14 @@ function onHistoryPush(handleHistoryPush) {
 }
 
 export default class Switch extends Component {
+  static defaultProps = {
+    loading: null
+  };
+
+  static propTypes = {
+    loading: PropTypes.node
+  };
+
   static contextTypes = {
     router: PropTypes.shape({
       history: PropTypes.shape({
@@ -36,8 +46,14 @@ export default class Switch extends Component {
   }
 
   render() {
-    return <ReactRouterSwitch {...this.props} />;
+    const props = { ...this.props };
+    delete props.loading;
+    return (
+      <LoadingContext.Provider value={this.props.loading}>
+        <ReactRouterSwitch {...props}>{this.props.children}</ReactRouterSwitch>
+      </LoadingContext.Provider>
+    );
   }
 }
 
-export { onHistoryPush };
+export { onHistoryPush, LoadingContext };
