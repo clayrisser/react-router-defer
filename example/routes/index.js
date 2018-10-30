@@ -14,7 +14,11 @@ onRouteLoaded(router => {
 export default class Routes extends Component {
   render() {
     return (
-      <Switch loading="loading">
+      <Switch
+        loading="loading"
+        onLoadingStart={() => console.log('loading started')}
+        onLoadingFinish={() => console.log('loading finished')}
+      >
         <Route exact path="/" component={() => import('./Home')} />
         <Route
           component={() => import('./NotFound')}

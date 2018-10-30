@@ -17,12 +17,16 @@ function onHistoryPush(handleHistoryPush) {
 export default class Switch extends Component {
   static propTypes = {
     loading: PropTypes.node,
-    loadingAll: PropTypes.bool
+    loadingAll: PropTypes.bool,
+    onLoadingFinish: PropTypes.func,
+    onLoadingStart: PropTypes.func
   };
 
   static defaultProps = {
     loading: null,
-    loadingAll: false
+    loadingAll: false,
+    onLoadingFinish: f => f,
+    onLoadingStart: f => f
   };
 
   static contextTypes = {
@@ -40,7 +44,9 @@ export default class Switch extends Component {
       history._push = history.push;
       history.push = async (...args) => {
         for (const handleHistoryPush of historyPushHandlers) {
-          await handleHistoryPush(router, ...args);
+          if (typeof handleHistoryPush === 'function') {
+            await handleHistoryPush(router, ...args);
+          }
         }
         history._push(...args);
       };
@@ -55,7 +61,9 @@ export default class Switch extends Component {
       <SwitchContext.Provider
         value={{
           loading: this.props.loading,
-          loadingAll: this.props.loadingAll
+          loadingAll: this.props.loadingAll,
+          onLoadingFinish: this.props.onLoadingFinish,
+          onLoadingStart: this.props.onLoadingStart
         }}
       >
         <ReactRouterSwitch {...props}>{this.props.children}</ReactRouterSwitch>

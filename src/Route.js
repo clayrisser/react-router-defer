@@ -17,15 +17,19 @@ export default class Route extends Component {
   static propTypes = {
     componentDefer: PropTypes.func,
     loading: PropTypes.node,
-    renderDefer: PropTypes.func,
-    loadingAll: PropTypes.bool
+    loadingAll: PropTypes.bool,
+    onLoadingFinish: PropTypes.func,
+    onLoadingStart: PropTypes.func,
+    renderDefer: PropTypes.func
   };
 
   static defaultProps = {
     componentDefer: null,
     loading: null,
-    renderDefer: null,
-    loadingAll: false
+    loadingAll: false,
+    onLoadingFinish: null,
+    onLoadingStart: null,
+    renderDefer: null
   };
 
   static contextTypes = {
@@ -46,9 +50,11 @@ export default class Route extends Component {
     rendered: null
   };
 
-  isRendering = false;
+  isLoading = false;
 
   initialRouteLoaded = false;
+
+  isStated = false;
 
   componentWillMount() {
     onHistoryPush((router, location) => {
@@ -61,25 +67,26 @@ export default class Route extends Component {
   }
 
   getRenderDefer() {
-    if (!this.isRendering) this.triggerRenderDefer();
+    if (!this.isLoading) this.triggerRenderDefer();
     const { rendered } = this.state;
     return () => rendered;
   }
 
   getComponentDefer() {
-    if (!this.isRendering) this.triggerComponentDefer();
+    if (!this.isLoading) this.triggerComponentDefer();
     const { component } = this.state;
     return component;
   }
 
   async triggerComponentDefer() {
-    this.isRendering = true;
+    this.isLoading = true;
     let component = await this.componentDefer(this.props);
     if (component.__esModule) component = component.default;
     if (this.current !== this.componentDefer) {
       this.setState({ component, loading: false });
+      this.finished();
     }
-    this.isRendering = false;
+    this.isLoading = false;
     this.routeLoaded();
   }
 
@@ -87,35 +94,47 @@ export default class Route extends Component {
     if (!this.initialRouteLoaded) this.initialRouteLoaded = true;
     const { router } = this.context;
     for (const handleRouteLoaded of routeLoadedHandlers) {
-      await handleRouteLoaded(router);
+      if (typeof handleRouteLoaded === 'function') {
+        await handleRouteLoaded(router);
+      }
     }
   }
 
   async triggerRenderDefer() {
-    this.isRendering = true;
+    this.isLoading = true;
     let rendered = await this.renderDefer(this.props);
     if (rendered.__esModule) rendered = rendered.default;
-    this.setState({ rendered, loading: false });
-    this.isRendering = false;
+    if (this.current !== this.componentDefer) {
+      this.setState({ rendered, loading: false });
+      this.finished();
+    }
+    this.isLoading = false;
     this.routeLoaded();
   }
 
-  renderLoading(props) {
-    return (
-      <SwitchContext.Consumer>
-        {({ loading, loadingAll }) => {
-          if (!this.initialRouteLoaded || this.props.loadingAll || loadingAll) {
-            delete props.component;
-            delete props.render;
-            props.component = () => this.props.loading || loading;
-          }
-          return <ReactRouterRoute {...props} />;
-        }}
-      </SwitchContext.Consumer>
-    );
+  started() {
+    if (!this.isStarted) {
+      const { router } = this.context;
+      this.isStarted = true;
+      this.onLoadingStart(router);
+    }
   }
 
-  render() {
+  finished() {
+    const { router } = this.context;
+    this.isStarted = false;
+    this.onLoadingFinish(router);
+  }
+
+  renderSwitchContext(context) {
+    const { onLoadingStart, onLoadingFinish } = context;
+    if (!this.onLoadingStart) {
+      this.onLoadingStart = this.props.onLoadingStart || onLoadingStart;
+    }
+    if (!this.onLoadingFinish) {
+      this.onLoadingFinish = this.props.onLoadingFinish || onLoadingFinish;
+    }
+    this.started();
     const { component, render, componentDefer, renderDefer } = this.props;
     if (component) {
       if (isPromise(component)) {
@@ -146,8 +165,25 @@ export default class Route extends Component {
     } else {
       this.routeLoaded();
     }
-    if (this.state.loading) return this.renderLoading(props);
+    if (this.state.loading) return this.renderLoading(context, props);
     return <ReactRouterRoute {...props} />;
+  }
+
+  renderLoading({ loading, loadingAll }, props) {
+    if (!this.initialRouteLoaded || this.props.loadingAll || loadingAll) {
+      delete props.component;
+      delete props.render;
+      props.component = () => this.props.loading || loading;
+    }
+    return <ReactRouterRoute {...props} />;
+  }
+
+  render() {
+    return (
+      <SwitchContext.Consumer>
+        {context => this.renderSwitchContext(context)}
+      </SwitchContext.Consumer>
+    );
   }
 }
 
