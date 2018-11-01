@@ -1,7 +1,7 @@
 import PropTypes from 'prop-types';
 import React, { Component } from 'react';
 import { Route as ReactRouterRoute } from 'react-router';
-import { SwitchContext, onHistoryPush } from './Switch';
+import { SwitchContext } from './Switch';
 
 const routeLoadedHandlers = [];
 
@@ -46,87 +46,72 @@ export default class Route extends Component {
 
   state = {
     component: () => null,
-    loading: true,
+    isLoading: false,
     rendered: null
   };
 
-  isLoading = false;
+  isLoading = true;
 
   initialRouteLoaded = false;
 
-  isStated = false;
-
-  componentWillMount() {
-    onHistoryPush((router, location) => {
-      const { pathname, search, hash } = router.history.location;
-      if (`${pathname}${search}${hash}` !== location) {
-        this.current = this.componentDefer || this.renderDefer;
-        this.setState({ loading: true });
-      }
-    });
-  }
+  previousHistoryLocation = null;
 
   getRenderDefer() {
-    if (!this.isLoading) this.triggerRenderDefer();
+    if (this.isLoading && !this.state.isLoading) this.triggerRenderDefer();
     const { rendered } = this.state;
     return () => rendered;
   }
 
   getComponentDefer() {
-    if (!this.isLoading) this.triggerComponentDefer();
+    if (this.isLoading && !this.state.isLoading) this.triggerComponentDefer();
     const { component } = this.state;
     return component;
   }
 
   async triggerComponentDefer() {
-    this.isLoading = true;
+    this.startedLoading();
     let component = await this.componentDefer(this.props);
     if (component.__esModule) component = component.default;
-    if (this.current !== this.componentDefer) {
-      this.setState({ component, loading: false });
-      this.finished();
-    }
-    this.isLoading = false;
-    this.routeLoaded();
+    this.finishedLoading({ component });
   }
 
-  async routeLoaded() {
-    if (!this.initialRouteLoaded) this.initialRouteLoaded = true;
+  async triggerRenderDefer() {
+    this.startedLoading();
+    let rendered = await this.renderDefer(this.props);
+    if (rendered.__esModule) rendered = rendered.default;
+    this.finishedLoading({ rendered });
+  }
+
+  startedLoading() {
+    if (this.componentDefer || this.renderDefer) {
+      this.state.isLoading = true;
+      setTimeout(() => this.forceUpdate(), 0);
+    }
     const { router } = this.context;
+    this.onLoadingStart(router);
+  }
+
+  async finishedLoading({ rendered, component }) {
+    const { router } = this.context;
+    if (!this.initialRouteLoaded) this.initialRouteLoaded = true;
+    this.onLoadingFinish(router);
     for (const handleRouteLoaded of routeLoadedHandlers) {
       if (typeof handleRouteLoaded === 'function') {
         await handleRouteLoaded(router);
       }
     }
-  }
-
-  async triggerRenderDefer() {
-    this.isLoading = true;
-    let rendered = await this.renderDefer(this.props);
-    if (rendered.__esModule) rendered = rendered.default;
-    if (this.current !== this.componentDefer) {
-      this.setState({ rendered, loading: false });
-      this.finished();
-    }
     this.isLoading = false;
-    this.routeLoaded();
-  }
-
-  started() {
-    if (!this.isStarted) {
-      const { router } = this.context;
-      this.isStarted = true;
-      this.onLoadingStart(router);
+    if (this.componentDefer || this.renderDefer) {
+      this.setState({
+        isLoading: false,
+        ...(rendered ? { rendered } : {}),
+        ...(component ? { component } : {})
+      });
     }
   }
 
-  finished() {
-    const { router } = this.context;
-    this.isStarted = false;
-    this.onLoadingFinish(router);
-  }
-
-  renderSwitchContext(context) {
+  renderContext(context) {
+    const { isLoading } = this.state;
     const { onLoadingStart, onLoadingFinish } = context;
     if (!this.onLoadingStart) {
       this.onLoadingStart = this.props.onLoadingStart || onLoadingStart;
@@ -134,7 +119,6 @@ export default class Route extends Component {
     if (!this.onLoadingFinish) {
       this.onLoadingFinish = this.props.onLoadingFinish || onLoadingFinish;
     }
-    this.started();
     const { component, render, componentDefer, renderDefer } = this.props;
     if (component) {
       if (isPromise(component)) {
@@ -149,6 +133,7 @@ export default class Route extends Component {
     } else if (renderDefer) {
       this.renderDefer = renderDefer;
     }
+    if (!this.componentDefer && !this.renderDefer) this.startedLoading();
     let props = { ...this.props };
     delete props.componentDefer;
     delete props.renderDefer;
@@ -163,9 +148,9 @@ export default class Route extends Component {
         render: this.getRenderDefer()
       };
     } else {
-      this.routeLoaded();
+      this.finishedLoading({});
     }
-    if (this.state.loading) return this.renderLoading(context, props);
+    if (isLoading) this.renderLoading(context, props);
     return <ReactRouterRoute {...props} />;
   }
 
@@ -179,9 +164,12 @@ export default class Route extends Component {
   }
 
   render() {
+    const { location } = this.context.router.history;
+    if (location !== this.previousHistoryLocation) this.isLoading = true;
+    this.previousHistoryLocation = location;
     return (
       <SwitchContext.Consumer>
-        {context => this.renderSwitchContext(context)}
+        {context => this.renderContext(context)}
       </SwitchContext.Consumer>
     );
   }
@@ -191,8 +179,10 @@ function isPromise(promise) {
   const { name } = promise?.constructor || {};
   if (name === 'Promise' || name === 'LazyPromise') return true;
   if (typeof promise === 'function') {
-    const { name } = promise()?.constructor || {};
-    if (name === 'Promise' || name === 'LazyPromise') return true;
+    try {
+      const { name } = promise()?.constructor || {};
+      if (name === 'Promise' || name === 'LazyPromise') return true;
+    } catch (err) {}
   }
   return false;
 }

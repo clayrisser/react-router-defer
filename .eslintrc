@@ -5,6 +5,7 @@
   },
   "rules": {
     "import/no-extraneous-dependencies": "off",
+    "no-empty": "off",
     "no-restricted-syntax": "off"
   }
 }
